@@ -26,11 +26,22 @@ void MainComponent::paint (Graphics& g)
 
     g.setFont (Font (16.0f));
     g.setColour (Colours::white);
-    std::vector<std::pair<String,String>> latestFw = getLatestFirmwareVersionsVector("https://update.audient.com/products.json");
-    g.drawText("Latest firmware availables", 200, 20, 250, 25, Justification::centred);
-    for (int i = 0 ; i< latestFw.size(); i++){
-        g.drawText(latestFw[i].first, 20 , 90 + (i * 50), 200, 20, Justification::centred);
-        g.drawText(latestFw[i].second, 200, 90 + (i * 50), 200, 20, Justification::centred);
+    String parameter = "firmware"; //strict = true will return the latest v1 while strict = false will return the latest v2
+    //Other parameters to play with
+    //String parameter = "firmware-v2";
+    // String parameter = "Mac app";
+    // String parameter = "documentation";
+    // String parameter = "libusb";
+    //String parameter = "id app for mac";
+    //String parameter = "LibUSB 10.7/10.8";
+    String jsonUrl = "https://update.audient.com/products.json";
+    auto versions = getLatestVersions(jsonUrl, parameter, true);
+    g.drawText("Latest "+parameter+" version available", 80, 20, 350, 25, Justification::centred);
+    if (!versions.empty()){
+        for (int i = 0 ; i< versions.size(); i++){
+            g.drawText(versions[i].first, 20 , 90 + (i * 50), 350, 20, Justification::left);
+            g.drawText(versions[i].second, 200, 90 + (i * 50), 350, 20, Justification::left);
+        }
     }
 }
 
@@ -73,3 +84,45 @@ std::vector<std::pair<String,String>> MainComponent::getLatestFirmwareVersionsVe
     return Output;
 }
 
+std::vector<std::pair<String,String>> MainComponent::getLatestVersions(String url, String parameter, bool strict){
+    std::vector<std::pair<String,String>> Output;
+    URL jsonURL (url);
+    var jsonObjects =JSON::parse(jsonURL.readEntireTextStream());
+    auto ProductsList = jsonObjects.getProperty("products", var()).getArray();
+    String productName;
+    for (auto& prd : *ProductsList){
+        auto components = prd.getProperty("components", var()).getArray();
+        productName = prd.getProperty("name", var()).toString();
+        bool hasparameter = false;
+        String version;
+        for (auto& cmp : *components){
+            if (!strict && cmp.getProperty("name", var()).toString().containsIgnoreCase(parameter)){
+                hasparameter = true;
+                version = cmp.getProperty("latest_release", var()).getProperty("version", var()).toString(); // will display the latest fw v
+                } else if (strict && cmp.getProperty("name", var()).toString().compareIgnoreCase(parameter) == 0){ //JUCE's compareIgnoreCase returns 0 when the two strings are identical
+                    hasparameter = true;
+                    version = cmp.getProperty("latest_release", var()).getProperty("version", var()).toString();
+            }
+        }
+        if (hasparameter){
+            Output.emplace_back(productName,version);
+        } else {
+            Output.emplace_back(productName,"No "+parameter+ " detected");
+        }
+    }
+    return Output;
+}
+String MainComponent::getLatestVersion(String url, String parameter, String product, bool strict){
+    URL jsonURL (url);
+    var jsonObjects =JSON::parse(jsonURL.readEntireTextStream());
+    auto ProductsList = jsonObjects.getProperty("products", var()).getArray();
+    for (auto& prd : *ProductsList){
+        bool hasparameter = false;
+        if (strict && product == prd.getProperty("name", var()).toString()){
+            hasparameter = true;
+            
+        }
+    }
+}
+
+//more generic json algorithm
